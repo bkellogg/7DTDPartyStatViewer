@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xml>
+    <Name value="PartyStatViewer" />
+    <DisplayName value="Party Stat Viewer" />
+    <Description value="Shows party members' skill book and magazine progression in item tooltips" />
+    <Author value="bkellogg" />
+    <Version value="1.0.0" />
+</xml>
