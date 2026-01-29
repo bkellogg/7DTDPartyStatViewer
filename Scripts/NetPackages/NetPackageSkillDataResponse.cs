@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using PartyStatViewer.Harmony.Patches;
 
 namespace PartyStatViewer.NetPackages
 {
@@ -83,6 +84,9 @@ namespace PartyStatViewer.NetPackages
             if (_world == null) return;
 
             SkillDataCache.Store(bookSeriesId, (SkillType)skillType, maxLevel, displayName, playerSkills);
+
+            // Trigger UI refresh now that data is available
+            ItemInfoWindowPatch.OnDataReceived(bookSeriesId);
         }
 
         public override NetPackageDirection PackageDirection => NetPackageDirection.ToClient;

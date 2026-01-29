@@ -19,8 +19,8 @@ namespace PartyStatViewer
         public override string getHelp()
         {
             return @"PartyStatViewer commands:
-  psv cache:clear - Clear the skill data cache
-  psv cache:info  - Show cache info";
+  psv cache:clear - Clear pending requests
+  psv cache:info  - Show pending request info";
         }
 
         public override void Execute(List<string> _params, CommandSenderInfo _senderInfo)
@@ -37,30 +37,13 @@ namespace PartyStatViewer
             switch (subcommand)
             {
                 case "cache:clear":
-                    SkillDataCache.InvalidateAll();
+                    SkillDataCache.ClearAll();
                     Log.Out("[PartyStatViewer] Cache cleared.");
                     break;
 
                 case "cache:info":
-                    var info = SkillDataCache.GetCacheInfo();
-                    Log.Out($"[PartyStatViewer] Cache entries: {info.entryCount}, Pending requests: {info.pendingCount}");
-                    foreach (var entry in info.entries)
-                    {
-                        int age = (int)(System.DateTime.Now - entry.cachedAt).TotalSeconds;
-                        int playerCount = entry.playerSkills?.Count ?? 0;
-                        string players = "";
-                        if (entry.playerSkills != null)
-                        {
-                            foreach (var p in entry.playerSkills)
-                            {
-                                if (players.Length > 0) players += ", ";
-                                players += $"{p.playerName}:{p.currentLevel}";
-                            }
-                        }
-                        Log.Out($"  [{entry.displayName}] {entry.seriesId} - {playerCount} player(s), age: {age}s, expired: {entry.IsExpired}");
-                        if (players.Length > 0)
-                            Log.Out($"    Players: {players}");
-                    }
+                    var stats = SkillDataCache.GetStats();
+                    Log.Out($"[PartyStatViewer] Pending responses: {stats.responseCount}, Pending requests: {stats.pendingCount}");
                     break;
 
                 default:

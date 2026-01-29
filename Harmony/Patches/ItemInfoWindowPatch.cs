@@ -8,6 +8,44 @@ namespace PartyStatViewer.Harmony.Patches
     [HarmonyPatch(typeof(XUiC_ItemInfoWindow), "GetBindingValueInternal")]
     public static class ItemInfoWindowPatch
     {
+        // Store reference to last active window for refresh triggering
+        private static XUiC_ItemInfoWindow _lastActiveWindow;
+        private static string _lastSeriesId;
+
+        // Current cached data - only re-fetch when seriesId changes
+        private static CachedSkillData _currentData;
+
+        /// <summary>
+        /// Called by NetPackageSkillDataResponse when data arrives.
+        /// </summary>
+        public static void OnDataReceived(string seriesId)
+        {
+            if (!string.Equals(_lastSeriesId, seriesId, System.StringComparison.OrdinalIgnoreCase))
+                return;
+
+            if (_currentData != null && string.Equals(_currentData.seriesId, seriesId, System.StringComparison.OrdinalIgnoreCase))
+            {
+                // Already have data displayed - this is an update from someone reading a book
+                // Just clear cache, no refresh (avoids flicker with stale data)
+                _currentData = null;
+            }
+            else
+            {
+                // No data yet - this is initial load response, refresh to show it
+                if (_lastActiveWindow != null)
+                {
+                    try
+                    {
+                        _lastActiveWindow.RefreshBindings();
+                    }
+                    catch (System.Exception)
+                    {
+                        // Silently ignore
+                    }
+                }
+            }
+        }
+
         static void Postfix(
             XUiC_ItemInfoWindow __instance,
             ref string value,
@@ -22,22 +60,29 @@ namespace PartyStatViewer.Harmony.Patches
             ItemStack itemStack = __instance.itemStack;
             if (itemStack.IsEmpty()) return;
 
-            // Debug: Log item name
-            string itemName = itemStack.itemValue.ItemClass?.Name ?? "null";
-            Log.Out($"[PartyStatViewer] Item selected: {itemName}");
-
             // Check if it's a book/magazine we care about
             var bookInfo = BookTypeDetector.GetBookInfo(itemStack.itemValue.ItemClass);
-            Log.Out($"[PartyStatViewer] BookInfo valid: {bookInfo.isValid}, type: {bookInfo.type}, seriesId: {bookInfo.seriesId}");
             if (!bookInfo.isValid) return;
 
-            // Get skill data - always fresh, no caching
+            // Store reference for refresh triggering
+            _lastActiveWindow = __instance;
+            _lastSeriesId = bookInfo.seriesId;
+
             bool isSinglePlayerOrServer = SingletonMonoBehaviour<ConnectionManager>.Instance.IsServer;
 
-            CachedSkillData skillData;
+            // Check if we already have data for this book
+            if (_currentData != null && string.Equals(_currentData.seriesId, bookInfo.seriesId, System.StringComparison.OrdinalIgnoreCase))
+            {
+                // Already have data for this book, use it
+                string cachedUnlocks = itemStack.itemValue.ItemClass?.Unlocks ?? "";
+                value = value + "\n\n" + FormatSkillSection(_currentData, bookInfo, cachedUnlocks);
+                return;
+            }
+
+            // Different book or no data yet - need to fetch
             if (isSinglePlayerOrServer)
             {
-                // Single player/server - gather data directly
+                // Single player/server - gather data directly (once)
                 var localPlayer = GameManager.Instance.World.GetPrimaryPlayer();
                 if (localPlayer == null) return;
 
@@ -45,7 +90,7 @@ namespace PartyStatViewer.Harmony.Patches
                     localPlayer, bookInfo.seriesId, bookInfo.type, bookInfo.maxLevel);
                 string displayName = SkillDataManager.GetDisplayNameForProgression(bookInfo.seriesId);
 
-                skillData = new CachedSkillData
+                _currentData = new CachedSkillData
                 {
                     seriesId = bookInfo.seriesId,
                     skillType = bookInfo.type,
@@ -56,42 +101,38 @@ namespace PartyStatViewer.Harmony.Patches
             }
             else
             {
-                // Multiplayer client - request from server, store response for this frame
-                skillData = SkillDataCache.Get(bookInfo.seriesId);
+                // Multiplayer client - check if response arrived
+                var responseData = SkillDataCache.GetAndClear(bookInfo.seriesId);
 
-                // Always request fresh data, but don't spam while waiting
-                if (!SkillDataCache.IsPending(bookInfo.seriesId))
+                if (responseData != null)
                 {
-                    SkillDataCache.MarkPending(bookInfo.seriesId);
-                    SkillDataCache.InvalidateEntry(bookInfo.seriesId); // Clear old data
-                    RequestSkillDataFromServer(bookInfo);
+                    // Got response, store it
+                    _currentData = responseData;
                 }
-
-                if (skillData == null)
+                else
                 {
-                    // Still waiting for server response
+                    // No response yet - send request if not already pending
+                    if (!SkillDataCache.IsPending(bookInfo.seriesId))
+                    {
+                        SkillDataCache.MarkPending(bookInfo.seriesId);
+                        RequestSkillDataFromServer(bookInfo);
+                    }
+
+                    // Show loading message
                     string loadingMsg = LoadingMessages.GetLoadingMessage(bookInfo.type, bookInfo.seriesId);
-                    value = value + "\n\n--- Party Progress ---\n" + loadingMsg;
+                    string loadingHeader = bookInfo.type == SkillType.PerkBook
+                        ? "[Party Progress]"
+                        : "[Party Skill]";
+                    value = value + "\n\n" + loadingHeader + "\n" + loadingMsg;
                     return;
                 }
             }
 
-            Log.Out($"[PartyStatViewer] Got cached data: {skillData.playerSkills?.Count ?? 0} players");
-
-            // TODO: Re-enable party check after testing
-            // Hide section if not in a party (solo play)
-            // if (skillData.playerSkills == null || skillData.playerSkills.Count <= 1)
-            // {
-            //     Log.Out("[PartyStatViewer] Hiding - not in party or solo play");
-            //     return;
-            // }
-
             // Get the unlock progression name for this specific book
             string unlocks = itemStack.itemValue.ItemClass?.Unlocks ?? "";
-            Log.Out($"[PartyStatViewer] Item unlocks: '{unlocks}'");
 
             // Append party skill section to description
-            value = value + "\n\n" + FormatSkillSection(skillData, bookInfo, unlocks);
+            value = value + "\n\n" + FormatSkillSection(_currentData, bookInfo, unlocks);
         }
 
         private static string FormatSkillSection(CachedSkillData data, BookTypeDetector.BookInfo bookInfo, string unlocks)
@@ -101,8 +142,8 @@ namespace PartyStatViewer.Harmony.Patches
 
             // Header line
             string header = data.skillType == SkillType.PerkBook
-                ? $"--- {data.displayName} Progress ---"
-                : $"--- {data.displayName} Skill ---";
+                ? "[Party Progress]"
+                : "[Party Skill]";
             sb.AppendLine(header);
 
             // For perk books, check if player already has this volume
@@ -111,8 +152,6 @@ namespace PartyStatViewer.Harmony.Patches
                 // Find which volume number this book is by matching unlocks to BookGroup children
                 int volumeNum = GetVolumeNumberForUnlock(data.seriesId, unlocks);
                 var localPlayer = data.playerSkills.FirstOrDefault(p => p.entityId == localEntityId);
-
-                Log.Out($"[PartyStatViewer] Warning check: unlocks='{unlocks}', volumeNum={volumeNum}, volumesRead='{localPlayer.volumesRead}'");
 
                 if (volumeNum > 0 && HasVolume(localPlayer.volumesRead, volumeNum))
                 {
@@ -167,10 +206,7 @@ namespace PartyStatViewer.Harmony.Patches
                 return 0;
 
             if (!Progression.ProgressionClasses.TryGetValue(bookGroupName, out ProgressionClass bookGroupClass))
-            {
-                Log.Out($"[PartyStatViewer] GetVolumeNumberForUnlock: Could not find BookGroup '{bookGroupName}'");
                 return 0;
-            }
 
             int volumeNumber = 0;
             foreach (var childClass in bookGroupClass.Children)
@@ -180,13 +216,9 @@ namespace PartyStatViewer.Harmony.Patches
 
                 // Check if this child's name matches the unlocks value (case-insensitive)
                 if (string.Equals(childClass.Name, unlocks, System.StringComparison.OrdinalIgnoreCase))
-                {
-                    Log.Out($"[PartyStatViewer] GetVolumeNumberForUnlock: Found '{unlocks}' at volume {volumeNumber}");
                     return volumeNumber;
-                }
             }
 
-            Log.Out($"[PartyStatViewer] GetVolumeNumberForUnlock: Could not find '{unlocks}' in children of '{bookGroupName}'");
             return 0;
         }
 

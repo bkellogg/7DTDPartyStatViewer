@@ -7,15 +7,11 @@ namespace PartyStatViewer.Harmony.Patches
     /// <summary>
     /// Broadcasts skill updates to party members when any player's book/crafting skill changes.
     /// </summary>
-    [HarmonyPatch(typeof(ProgressionValue))]
-    [HarmonyPatch("Level", MethodType.Setter)]
+    [HarmonyPatch(typeof(ProgressionValue), "set_Level")]
     public static class ProgressionPatch
     {
         static void Postfix(ProgressionValue __instance)
         {
-            if (!SingletonMonoBehaviour<ConnectionManager>.Instance.IsServer) return;
-
-            // Only broadcast for book/crafting progressions we care about
             var progressionClass = __instance.ProgressionClass;
             if (progressionClass == null) return;
 
@@ -50,6 +46,9 @@ namespace PartyStatViewer.Harmony.Patches
             EntityPlayer owner = FindProgressionOwner(__instance);
             if (owner == null) return;
 
+            // Server-side broadcasting to party members
+            if (!SingletonMonoBehaviour<ConnectionManager>.Instance.IsServer) return;
+
             // Only broadcast if the player is in a party
             if (owner.Party == null) return;
 
@@ -79,5 +78,6 @@ namespace PartyStatViewer.Harmony.Patches
             }
             return null;
         }
+
     }
 }

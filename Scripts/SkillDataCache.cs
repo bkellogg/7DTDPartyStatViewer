@@ -11,40 +11,64 @@ namespace PartyStatViewer
         public int maxLevel;
         public string displayName;
         public List<NetPackageSkillDataResponse.PlayerSkillData> playerSkills;
-        public DateTime cachedAt;
-
-        // Short duration - just long enough to display after server response
-        private const int CacheDurationSeconds = 3;
-        public bool IsExpired => (DateTime.Now - cachedAt).TotalSeconds > CacheDurationSeconds;
     }
 
+    /// <summary>
+    /// Tracks pending requests and stores the most recent response for immediate display.
+    /// No long-term caching - data is cleared after being displayed once.
+    /// </summary>
     public static class SkillDataCache
     {
-        private static readonly Dictionary<string, CachedSkillData> _cache =
+        // Store just the latest response for each series (for immediate display after response arrives)
+        private static readonly Dictionary<string, CachedSkillData> _latestResponse =
             new Dictionary<string, CachedSkillData>();
 
-        private static readonly HashSet<string> _pendingRequests = new HashSet<string>();
+        // Track pending requests with timeout
+        private static readonly Dictionary<string, DateTime> _pendingRequests =
+            new Dictionary<string, DateTime>();
 
-        public static CachedSkillData Get(string seriesId)
+        // Pending requests timeout after this many seconds
+        private const double PendingTimeoutSeconds = 2.0;
+
+        /// <summary>
+        /// Gets the latest response data and clears it (one-time use).
+        /// </summary>
+        public static CachedSkillData GetAndClear(string seriesId)
         {
-            if (_cache.TryGetValue(seriesId, out var data))
+            if (_latestResponse.TryGetValue(seriesId, out var data))
             {
-                if (!data.IsExpired)
-                    return data;
-
-                _cache.Remove(seriesId);
+                _latestResponse.Remove(seriesId);
+                return data;
             }
             return null;
         }
 
+        /// <summary>
+        /// Checks if there's a response ready without consuming it.
+        /// </summary>
+        public static bool HasResponse(string seriesId)
+        {
+            return _latestResponse.ContainsKey(seriesId);
+        }
+
         public static bool IsPending(string seriesId)
         {
-            return _pendingRequests.Contains(seriesId);
+            if (_pendingRequests.TryGetValue(seriesId, out var requestTime))
+            {
+                // Check if pending request has timed out
+                if ((DateTime.Now - requestTime).TotalSeconds > PendingTimeoutSeconds)
+                {
+                    _pendingRequests.Remove(seriesId);
+                    return false;
+                }
+                return true;
+            }
+            return false;
         }
 
         public static void MarkPending(string seriesId)
         {
-            _pendingRequests.Add(seriesId);
+            _pendingRequests[seriesId] = DateTime.Now;
         }
 
         public static void Store(
@@ -55,31 +79,25 @@ namespace PartyStatViewer
             List<NetPackageSkillDataResponse.PlayerSkillData> playerSkills)
         {
             _pendingRequests.Remove(seriesId);
-            _cache[seriesId] = new CachedSkillData
+            _latestResponse[seriesId] = new CachedSkillData
             {
                 seriesId = seriesId,
                 skillType = skillType,
                 maxLevel = maxLevel,
                 displayName = displayName,
-                playerSkills = playerSkills,
-                cachedAt = DateTime.Now
+                playerSkills = playerSkills
             };
         }
 
-        public static void InvalidateEntry(string seriesId)
+        public static void ClearAll()
         {
-            _cache.Remove(seriesId);
-        }
-
-        public static void InvalidateAll()
-        {
-            _cache.Clear();
+            _latestResponse.Clear();
             _pendingRequests.Clear();
         }
 
-        public static (int entryCount, int pendingCount, List<CachedSkillData> entries) GetCacheInfo()
+        public static (int responseCount, int pendingCount) GetStats()
         {
-            return (_cache.Count, _pendingRequests.Count, new List<CachedSkillData>(_cache.Values));
+            return (_latestResponse.Count, _pendingRequests.Count);
         }
     }
 }
