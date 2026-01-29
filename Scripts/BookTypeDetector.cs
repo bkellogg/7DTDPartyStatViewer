@@ -58,59 +58,60 @@ namespace PartyStatViewer
         }
 
         // Perk Books (7 volumes each) - item name prefix -> (progression name, display name)
-        // NOTE: Verify against game's Data/Config/progression.xml during testing
+        // Progression names use pattern: skill<Name> (from progression.xml book_group entries)
         public static readonly Dictionary<string, (string progressionName, string displayName)> PerkBookMappings =
             new Dictionary<string, (string progressionName, string displayName)>()
             {
-                { "bookArtOfMining", ("perkArtOfMining", "Art of Mining") },
-                { "bookAutoWeapons", ("perkAutoWeapons", "Automatic Weapons") },
-                { "bookBatterUp", ("perkBatterUp", "Batter Up!") },
-                { "bookBarBrawling", ("perkBarBrawling", "Bar Brawling") },
-                { "bookFiremansAlmanac", ("perkFiremansAlmanac", "Fireman's Almanac") },
-                { "bookGreatHeist", ("perkGreatHeist", "The Great Heist") },
-                { "bookHuntingJournal", ("perkHuntersJournal", "Hunter's Journal") },
-                { "bookLuckyLooter", ("perkLuckyLooter", "Lucky Looter") },
-                { "bookEnforcer", ("perkEnforcer", "Magnum Enforcer") },
-                { "bookNightStalker", ("perkNightStalker", "Night Stalker") },
-                { "bookPistolPete", ("perkPistolPete", "Pistol Pete") },
-                { "bookRangers", ("perkRangersGuide", "Ranger's Guide") },
-                { "bookShotgunMessiah", ("perkShotgunMessiah", "Shotgun Messiah") },
-                { "bookSledgeSaga", ("perkSledgeSaga", "Sledge Saga") },
-                { "bookSniper", ("perkSniper", "Sniper") },
-                { "bookSpearHunter", ("perkSpearHunter", "Spear Hunter") },
-                { "bookUrbanCombat", ("perkUrbanCombat", "Urban Combat") },
-                { "bookTechJunkie", ("perkTechJunkie", "Tech Junkie") },
-                { "bookWasteTreasures", ("perkWastelandTreasures", "Wasteland Treasures") },
+                { "bookArtOfMining", ("skillArtOfMining", "Art of Mining") },
+                { "bookAutoWeapons", ("skillAutoWeapons", "Automatic Weapons") },
+                { "bookBatterUp", ("skillBatterUp", "Batter Up!") },
+                { "bookBarBrawling", ("skillBarBrawling", "Bar Brawling") },
+                { "bookFiremansAlmanac", ("skillFiremansAlmanac", "Fireman's Almanac") },
+                { "bookGreatHeist", ("skillGreatHeist", "The Great Heist") },
+                { "bookHuntingJournal", ("skillHuntingJournal", "Hunter's Journal") },
+                { "bookLuckyLooter", ("skillLuckyLooter", "Lucky Looter") },
+                { "bookEnforcer", ("skillEnforcer", "Magnum Enforcer") },
+                { "bookNightStalker", ("skillNightStalker", "Night Stalker") },
+                { "bookPistolPete", ("skillPistolPete", "Pistol Pete") },
+                { "bookRangers", ("skillArchery", "Ranger's Guide") },
+                { "bookShotgunMessiah", ("skillShotguns", "Shotgun Messiah") },
+                { "bookSledgeSaga", ("skillSledgeSaga", "Sledge Saga") },
+                { "bookSniper", ("skillSniper", "Sniper") },
+                { "bookSpearHunter", ("skillSpearHunter", "Spear Hunter") },
+                { "bookUrbanCombat", ("skillUrbanCombat", "Urban Combat") },
+                { "bookTechJunkie", ("skillTechJunkie", "Tech Junkie") },
+                { "bookWasteTreasures", ("skillWasteTreasures", "Wasteland Treasures") },
             };
 
         // Crafting Skill Magazines - item name -> (skill progression, max level, display name)
         // Item names use pattern: <skillName>SkillMagazine
+        // Progression names use pattern: crafting<SkillName> (from progression.xml)
         public static readonly Dictionary<string, (string skill, int maxLevel, string displayName)> CraftingMagazineMappings =
             new Dictionary<string, (string skill, int maxLevel, string displayName)>()
             {
-                { "harvestingToolsSkillMagazine", ("cftHarvestingTools", 100, "Harvesting Tools") },
-                { "repairToolsSkillMagazine", ("cftRepairTools", 50, "Repair Tools") },
-                { "salvageToolsSkillMagazine", ("cftSalvageTools", 75, "Salvage Tools") },
-                { "knucklesSkillMagazine", ("cftKnuckles", 75, "Knuckles") },
-                { "bladesSkillMagazine", ("cftBlades", 75, "Blades") },
-                { "clubsSkillMagazine", ("cftClubs", 75, "Clubs") },
-                { "sledgehammersSkillMagazine", ("cftSledgehammers", 75, "Sledgehammers") },
-                { "bowsSkillMagazine", ("cftBows", 75, "Bows") },
-                { "spearsSkillMagazine", ("cftSpears", 75, "Spears") },
-                { "handgunsSkillMagazine", ("cftHandguns", 100, "Handgun Crafting") },
-                { "shotgunsSkillMagazine", ("cftShotguns", 100, "Shotgun Crafting") },
-                { "riflesSkillMagazine", ("cftRifles", 100, "Rifle Crafting") },
-                { "machineGunsSkillMagazine", ("cftMachineGuns", 100, "Machine Gun Crafting") },
-                { "explosivesSkillMagazine", ("cftExplosives", 100, "Explosives") },
-                { "roboticsSkillMagazine", ("cftRobotics", 100, "Robotics") },
-                { "armorSkillMagazine", ("cftArmor", 100, "Armor Crafting") },
-                { "medicalSkillMagazine", ("cftMedical", 75, "Medical") },
-                { "foodSkillMagazine", ("cftFood", 100, "Cooking") },
-                { "seedSkillMagazine", ("cftSeeds", 20, "Farming") },
-                { "electricianSkillMagazine", ("cftElectrician", 100, "Electrician") },
-                { "trapsSkillMagazine", ("cftTraps", 75, "Traps") },
-                { "workstationSkillMagazine", ("cftWorkstations", 75, "Workstations") },
-                { "vehiclesSkillMagazine", ("cftVehicles", 100, "Vehicles") },
+                { "harvestingToolsSkillMagazine", ("craftingHarvestingTools", 100, "Harvesting Tools") },
+                { "repairToolsSkillMagazine", ("craftingRepairTools", 50, "Repair Tools") },
+                { "salvageToolsSkillMagazine", ("craftingSalvageTools", 75, "Salvage Tools") },
+                { "knucklesSkillMagazine", ("craftingKnuckles", 75, "Knuckles") },
+                { "bladesSkillMagazine", ("craftingBlades", 75, "Blades") },
+                { "clubsSkillMagazine", ("craftingClubs", 75, "Clubs") },
+                { "sledgehammersSkillMagazine", ("craftingSledgehammers", 75, "Sledgehammers") },
+                { "bowsSkillMagazine", ("craftingBows", 75, "Bows") },
+                { "spearsSkillMagazine", ("craftingSpears", 75, "Spears") },
+                { "handgunsSkillMagazine", ("craftingHandguns", 100, "Handgun Crafting") },
+                { "shotgunsSkillMagazine", ("craftingShotguns", 100, "Shotgun Crafting") },
+                { "riflesSkillMagazine", ("craftingRifles", 100, "Rifle Crafting") },
+                { "machineGunsSkillMagazine", ("craftingMachineGuns", 100, "Machine Gun Crafting") },
+                { "explosivesSkillMagazine", ("craftingExplosives", 100, "Explosives") },
+                { "roboticsSkillMagazine", ("craftingRobotics", 100, "Robotics") },
+                { "armorSkillMagazine", ("craftingArmor", 100, "Armor Crafting") },
+                { "medicalSkillMagazine", ("craftingMedical", 75, "Medical") },
+                { "foodSkillMagazine", ("craftingFood", 100, "Cooking") },
+                { "seedSkillMagazine", ("craftingSeeds", 20, "Farming") },
+                { "electricianSkillMagazine", ("craftingElectrician", 100, "Electrician") },
+                { "trapsSkillMagazine", ("craftingTraps", 75, "Traps") },
+                { "workstationSkillMagazine", ("craftingWorkstations", 75, "Workstations") },
+                { "vehiclesSkillMagazine", ("craftingVehicles", 100, "Vehicles") },
             };
     }
 }

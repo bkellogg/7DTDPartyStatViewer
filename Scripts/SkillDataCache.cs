@@ -13,7 +13,8 @@ namespace PartyStatViewer
         public List<NetPackageSkillDataResponse.PlayerSkillData> playerSkills;
         public DateTime cachedAt;
 
-        private const int CacheDurationSeconds = 5;
+        // Short duration - just long enough to display after server response
+        private const int CacheDurationSeconds = 3;
         public bool IsExpired => (DateTime.Now - cachedAt).TotalSeconds > CacheDurationSeconds;
     }
 
@@ -21,6 +22,8 @@ namespace PartyStatViewer
     {
         private static readonly Dictionary<string, CachedSkillData> _cache =
             new Dictionary<string, CachedSkillData>();
+
+        private static readonly HashSet<string> _pendingRequests = new HashSet<string>();
 
         public static CachedSkillData Get(string seriesId)
         {
@@ -34,6 +37,16 @@ namespace PartyStatViewer
             return null;
         }
 
+        public static bool IsPending(string seriesId)
+        {
+            return _pendingRequests.Contains(seriesId);
+        }
+
+        public static void MarkPending(string seriesId)
+        {
+            _pendingRequests.Add(seriesId);
+        }
+
         public static void Store(
             string seriesId,
             SkillType skillType,
@@ -41,6 +54,7 @@ namespace PartyStatViewer
             string displayName,
             List<NetPackageSkillDataResponse.PlayerSkillData> playerSkills)
         {
+            _pendingRequests.Remove(seriesId);
             _cache[seriesId] = new CachedSkillData
             {
                 seriesId = seriesId,
@@ -52,9 +66,20 @@ namespace PartyStatViewer
             };
         }
 
+        public static void InvalidateEntry(string seriesId)
+        {
+            _cache.Remove(seriesId);
+        }
+
         public static void InvalidateAll()
         {
             _cache.Clear();
+            _pendingRequests.Clear();
+        }
+
+        public static (int entryCount, int pendingCount, List<CachedSkillData> entries) GetCacheInfo()
+        {
+            return (_cache.Count, _pendingRequests.Count, new List<CachedSkillData>(_cache.Values));
         }
     }
 }

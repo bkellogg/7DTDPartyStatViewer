@@ -18,7 +18,33 @@ namespace PartyStatViewer.Harmony.Patches
             // Only broadcast for book/crafting progressions we care about
             var progressionClass = __instance.ProgressionClass;
             if (progressionClass == null) return;
-            if (!progressionClass.IsBook && !progressionClass.IsCrafting) return;
+
+            // For individual books (type Book), we need to use the parent BookGroup
+            // For crafting skills, use the progression directly
+            string progressionName;
+            SkillType skillType;
+            int maxLevel;
+
+            if (progressionClass.IsBook)
+            {
+                // Individual book volume - get parent BookGroup info
+                var parentClass = progressionClass.Parent;
+                if (parentClass == null || !parentClass.IsBookGroup) return;
+
+                progressionName = parentClass.Name;
+                skillType = SkillType.PerkBook;
+                maxLevel = 7; // Perk books always have 7 volumes
+            }
+            else if (progressionClass.IsCrafting)
+            {
+                progressionName = progressionClass.Name;
+                skillType = SkillType.CraftingMagazine;
+                maxLevel = progressionClass.MaxLevel;
+            }
+            else
+            {
+                return; // Not a progression type we care about
+            }
 
             // Find which player owns this progression
             EntityPlayer owner = FindProgressionOwner(__instance);
@@ -27,28 +53,13 @@ namespace PartyStatViewer.Harmony.Patches
             // Only broadcast if the player is in a party
             if (owner.Party == null) return;
 
-            // Determine skill type and gather all players' data for this progression
-            string progressionName = progressionClass.Name;
-            SkillType skillType = progressionClass.IsBook ? SkillType.PerkBook : SkillType.CraftingMagazine;
-            int maxLevel = progressionClass.MaxLevel;
             string displayName = SkillDataManager.GetDisplayNameForProgression(progressionName);
 
-            // Send updated skill data to each party member
+            // Send updated skill data to each party member using the same logic as SkillDataManager
             foreach (EntityPlayer partyMember in SkillDataManager.GetPartyMembers(owner))
             {
-                // Gather this party member's view of party skill levels
-                var playerSkills = new List<NetPackageSkillDataResponse.PlayerSkillData>();
-                foreach (EntityPlayer member in SkillDataManager.GetPartyMembers(partyMember))
-                {
-                    ProgressionValue pv = member.Progression.GetProgressionValue(progressionName);
-                    int level = pv != null ? pv.Level : 0;
-                    playerSkills.Add(new NetPackageSkillDataResponse.PlayerSkillData
-                    {
-                        entityId = member.entityId,
-                        playerName = member.EntityName,
-                        currentLevel = level
-                    });
-                }
+                var playerSkills = SkillDataManager.GatherSkillDataForPlayer(
+                    partyMember, progressionName, skillType, maxLevel);
 
                 // Send to this party member
                 SingletonMonoBehaviour<ConnectionManager>.Instance.SendPackage(

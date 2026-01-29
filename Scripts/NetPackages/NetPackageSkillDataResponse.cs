@@ -22,6 +22,8 @@ namespace PartyStatViewer.NetPackages
             public int entityId;
             public string playerName;
             public int currentLevel;
+            // For perk books: comma-separated list of read volume numbers (e.g., "1,3,5")
+            public string volumesRead;
         }
 
         public NetPackageSkillDataResponse Setup(
@@ -53,7 +55,8 @@ namespace PartyStatViewer.NetPackages
                 {
                     entityId = _reader.ReadInt32(),
                     playerName = _reader.ReadString(),
-                    currentLevel = _reader.ReadInt32()
+                    currentLevel = _reader.ReadInt32(),
+                    volumesRead = _reader.ReadString()
                 });
             }
         }
@@ -71,6 +74,7 @@ namespace PartyStatViewer.NetPackages
                 _writer.Write(data.entityId);
                 _writer.Write(data.playerName);
                 _writer.Write(data.currentLevel);
+                _writer.Write(data.volumesRead ?? "");
             }
         }
 

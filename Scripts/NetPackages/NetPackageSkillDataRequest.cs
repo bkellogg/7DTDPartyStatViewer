@@ -51,5 +51,7 @@ namespace PartyStatViewer.NetPackages
         {
             return 4 + (bookSeriesId != null ? bookSeriesId.Length : 0) + 1 + 4;
         }
+
+        public override NetPackageDirection PackageDirection => NetPackageDirection.ToServer;
     }
 }

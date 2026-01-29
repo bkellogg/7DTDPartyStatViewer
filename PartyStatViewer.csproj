@@ -69,6 +69,8 @@
         <Compile Include="Scripts\BookTypeDetector.cs"/>
         <Compile Include="Scripts\SkillDataCache.cs"/>
         <Compile Include="Scripts\SkillDataManager.cs"/>
+        <Compile Include="Scripts\ConsoleCmdPartyStatViewer.cs"/>
+        <Compile Include="Scripts\LoadingMessages.cs"/>
     </ItemGroup>
     <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets"/>
 
