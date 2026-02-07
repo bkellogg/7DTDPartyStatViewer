@@ -70,6 +70,16 @@ namespace PartyStatViewer
             "Standing back...",
         };
 
+        private static readonly string[] SchematicMessages = new[]
+        {
+            "Unrolling the blueprint...",
+            "Studying the diagrams...",
+            "Checking the parts list...",
+            "Squinting at the fine print...",
+            "Comparing notes...",
+            "Deciphering the instructions...",
+        };
+
         public static string GetLoadingMessage(SkillType skillType, string seriesId)
         {
             // Check for specific skill types first
@@ -80,9 +90,13 @@ namespace PartyStatViewer
             }
 
             // Fall back to general type messages
-            string[] messages = skillType == SkillType.PerkBook
-                ? PerkBookMessages
-                : CraftingMagazineMessages;
+            string[] messages;
+            if (skillType == SkillType.PerkBook)
+                messages = PerkBookMessages;
+            else if (skillType == SkillType.Schematic)
+                messages = SchematicMessages;
+            else
+                messages = CraftingMagazineMessages;
 
             return messages[_random.Next(messages.Length)];
         }

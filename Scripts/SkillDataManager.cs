@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using PartyStatViewer.NetPackages;
 
@@ -102,6 +103,30 @@ namespace PartyStatViewer
             return (readVolumes.Count, string.Join(",", readVolumes));
         }
 
+        /// <summary>
+        /// Gets schematic progress for a player by checking CVars for each recipe the schematic unlocks.
+        /// Returns count of known recipes and comma-separated list of known recipe names.
+        /// </summary>
+        private static (int count, string knownRecipes) GetSchematicProgress(EntityPlayer player, string schematicItemName)
+        {
+            ItemClass itemClass = ItemClass.GetItemClass(schematicItemName, false);
+            if (itemClass == null)
+                return (0, "");
+
+            string[] recipes = BookTypeDetector.GetSchematicRecipes(itemClass);
+            if (recipes == null || recipes.Length == 0)
+                return (0, "");
+
+            var knownRecipes = new List<string>();
+            foreach (string recipeName in recipes)
+            {
+                if (player.GetCVar(recipeName) == 1f)
+                    knownRecipes.Add(recipeName);
+            }
+
+            return (knownRecipes.Count, string.Join(",", knownRecipes));
+        }
+
         public static void HandleSkillDataRequest(
             int requestingEntityId,
             string bookSeriesId,
@@ -124,6 +149,12 @@ namespace PartyStatViewer
                     var progress = GetBookGroupProgress(player, bookSeriesId, maxLevel);
                     level = progress.count;
                     volumesRead = progress.volumesRead;
+                }
+                else if (skillType == SkillType.Schematic)
+                {
+                    var progress = GetSchematicProgress(player, bookSeriesId);
+                    level = progress.count;
+                    volumesRead = progress.knownRecipes;
                 }
                 else
                 {
@@ -158,6 +189,12 @@ namespace PartyStatViewer
                 if (kvp.Value.skill == progressionName)
                     return kvp.Value.displayName;
             }
+
+            // For schematics, the seriesId is the item class name - try localization
+            ItemClass itemClass = ItemClass.GetItemClass(progressionName, false);
+            if (itemClass != null)
+                return Localization.Get(progressionName);
+
             return progressionName;
         }
 
@@ -199,6 +236,12 @@ namespace PartyStatViewer
                     var progress = GetBookGroupProgress(player, progressionName, maxLevel);
                     level = progress.count;
                     volumesRead = progress.volumesRead;
+                }
+                else if (skillType == SkillType.Schematic)
+                {
+                    var progress = GetSchematicProgress(player, progressionName);
+                    level = progress.count;
+                    volumesRead = progress.knownRecipes;
                 }
                 else
                 {

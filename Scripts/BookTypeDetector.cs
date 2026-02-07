@@ -54,7 +54,53 @@ namespace PartyStatViewer
                 }
             }
 
+            // Check Schematics - items that unlock recipes via Unlocks property or ItemActionLearnRecipe
+            string[] recipes = GetSchematicRecipes(itemClass);
+            if (recipes != null && recipes.Length > 0)
+            {
+                return new BookInfo
+                {
+                    isValid = true,
+                    type = SkillType.Schematic,
+                    seriesId = itemName,
+                    displayName = Localization.Get(itemName),
+                    maxLevel = recipes.Length
+                };
+            }
+
             return new BookInfo { isValid = false };
+        }
+
+        /// <summary>
+        /// Returns the recipe name(s) a schematic unlocks, or null if not a schematic.
+        /// Checks Unlocks property first (ItemActionEat-based schematics),
+        /// then falls back to ItemActionLearnRecipe.RecipesToLearn.
+        /// </summary>
+        public static string[] GetSchematicRecipes(ItemClass itemClass)
+        {
+            // Primary path: Unlocks property (used by ItemActionEat-based schematics)
+            if (!string.IsNullOrEmpty(itemClass.Unlocks))
+            {
+                Recipe recipe = CraftingManager.GetRecipe(itemClass.Unlocks);
+                if (recipe != null)
+                    return new[] { itemClass.Unlocks };
+            }
+
+            // Fallback: ItemActionLearnRecipe (legacy path)
+            if (itemClass.Actions != null)
+            {
+                for (int i = 0; i < itemClass.Actions.Length; i++)
+                {
+                    if (itemClass.Actions[i] is ItemActionLearnRecipe action
+                        && action.RecipesToLearn != null
+                        && action.RecipesToLearn.Length > 0)
+                    {
+                        return action.RecipesToLearn;
+                    }
+                }
+            }
+
+            return null;
         }
 
         // Perk Books (7 volumes each) - item name prefix -> (progression name, display name)

@@ -7,7 +7,8 @@ namespace PartyStatViewer.NetPackages
     public enum SkillType : byte
     {
         PerkBook = 0,
-        CraftingMagazine = 1
+        CraftingMagazine = 1,
+        Schematic = 2
     }
 
     public class NetPackageSkillDataResponse : NetPackage

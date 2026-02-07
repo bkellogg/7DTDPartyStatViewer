@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using HarmonyLib;
@@ -120,9 +121,13 @@ namespace PartyStatViewer.Harmony.Patches
 
                     // Show loading message
                     string loadingMsg = LoadingMessages.GetLoadingMessage(bookInfo.type, bookInfo.seriesId);
-                    string loadingHeader = bookInfo.type == SkillType.PerkBook
-                        ? "[Party Progress]"
-                        : "[Party Skill]";
+                    string loadingHeader;
+                    if (bookInfo.type == SkillType.PerkBook)
+                        loadingHeader = "[Party Progress]";
+                    else if (bookInfo.type == SkillType.Schematic)
+                        loadingHeader = "[Party Schematics]";
+                    else
+                        loadingHeader = "[Party Skill]";
                     value = value + "\n\n" + loadingHeader + "\n" + loadingMsg;
                     return;
                 }
@@ -141,9 +146,13 @@ namespace PartyStatViewer.Harmony.Patches
             int localEntityId = GameManager.Instance.World.GetPrimaryPlayerId();
 
             // Header line
-            string header = data.skillType == SkillType.PerkBook
-                ? "[Party Progress]"
-                : "[Party Skill]";
+            string header;
+            if (data.skillType == SkillType.PerkBook)
+                header = "[Party Progress]";
+            else if (data.skillType == SkillType.Schematic)
+                header = "[Party Schematics]";
+            else
+                header = "[Party Skill]";
             sb.AppendLine(header);
 
             // For perk books, check if player already has this volume
@@ -156,6 +165,16 @@ namespace PartyStatViewer.Harmony.Patches
                 if (volumeNum > 0 && HasVolume(localPlayer.volumesRead, volumeNum))
                 {
                     sb.AppendLine($"\u26a0 You already have Vol {volumeNum}!");
+                }
+            }
+
+            // For schematics, check if local player already knows all recipes
+            if (data.skillType == SkillType.Schematic)
+            {
+                var localPlayer = data.playerSkills.FirstOrDefault(p => p.entityId == localEntityId);
+                if (localPlayer.currentLevel >= data.maxLevel)
+                {
+                    sb.AppendLine("\u26a0 You already know this!");
                 }
             }
 
@@ -181,6 +200,29 @@ namespace PartyStatViewer.Harmony.Patches
                         // Show missing volumes inline (compact)
                         string missing = FormatMissingVolumes(player.volumesRead, data.maxLevel);
                         sb.AppendLine($"{playerLabel}: {player.currentLevel}/{data.maxLevel} (need {missing})");
+                    }
+                }
+                else if (data.skillType == SkillType.Schematic)
+                {
+                    if (data.maxLevel == 1)
+                    {
+                        // Single-recipe schematic (common case)
+                        sb.AppendLine(isComplete
+                            ? $"{playerLabel}: Known \u2713"
+                            : $"{playerLabel}: Not learned");
+                    }
+                    else
+                    {
+                        // Multi-recipe schematic
+                        if (isComplete)
+                        {
+                            sb.AppendLine($"{playerLabel}: {player.currentLevel}/{data.maxLevel} \u2713 All known");
+                        }
+                        else
+                        {
+                            string missing = FormatMissingRecipes(player.volumesRead, data.seriesId);
+                            sb.AppendLine($"{playerLabel}: {player.currentLevel}/{data.maxLevel} (need {missing})");
+                        }
                     }
                 }
                 else
@@ -268,6 +310,38 @@ namespace PartyStatViewer.Harmony.Patches
             }
 
             return missing.Count > 0 ? string.Join(",", missing) : "none";
+        }
+
+        /// <summary>
+        /// Returns a compact string of missing recipe names for a multi-recipe schematic.
+        /// </summary>
+        private static string FormatMissingRecipes(string knownRecipes, string schematicItemName)
+        {
+            ItemClass itemClass = ItemClass.GetItemClass(schematicItemName, false);
+            if (itemClass == null) return "?";
+
+            string[] recipes = BookTypeDetector.GetSchematicRecipes(itemClass);
+            if (recipes == null || recipes.Length == 0) return "?";
+
+            var knownSet = new HashSet<string>();
+            if (!string.IsNullOrEmpty(knownRecipes))
+            {
+                foreach (var name in knownRecipes.Split(','))
+                {
+                    string trimmed = name.Trim();
+                    if (trimmed.Length > 0)
+                        knownSet.Add(trimmed);
+                }
+            }
+
+            var missing = new List<string>();
+            foreach (string recipe in recipes)
+            {
+                if (!knownSet.Contains(recipe))
+                    missing.Add(Localization.Get(recipe));
+            }
+
+            return missing.Count > 0 ? string.Join(", ", missing) : "none";
         }
 
         private static void RequestSkillDataFromServer(BookTypeDetector.BookInfo bookInfo)
